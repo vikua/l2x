@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from tensorflow.keras import Input
-from tensorflow.keras.layers import (Embedding, Dropout, LSTM, GlobalMaxPooling1D, 
+from tensorflow.keras.layers import (Embedding, Dropout, Conv1D, GlobalMaxPooling1D, 
                                      Dense, Activation)
 from tensorflow.keras.datasets import imdb 
 from tensorflow.keras.models import Model, Sequential
@@ -19,8 +19,9 @@ class ImdbClassifier(object):
         self._max_sequence_length = max_sequence_length
         self._vocab_size = vocab_size
 
-        self._lstm_units = kwargs.pop('lstm_units', 128)
         self._embedding_size = kwargs.pop('embedding_size', 50)
+        self._filters = kwargs.pop('filters', 250)
+        self._kernel_size = kwargs.pop('kernel_size', 3)
         self._hidden_dims = kwargs.pop('hidden_dims', 250)
 
         self._model = None
@@ -29,14 +30,15 @@ class ImdbClassifier(object):
         inputs = Input(shape=(self._max_sequence_length,), dtype='int32', name='inputs')
 
         embed = Embedding(self._vocab_size, self._embedding_size)(inputs)
-        dropout = Dropout(0.5)(embed)
-        conv_1d = LSTM(self._lstm_units, return_sequences=True)(dropout)
+        dropout = Dropout(0.2)(embed)
+        conv_1d = Conv1D(self._filters, self._kernel_size, 
+                         padding='valid', activation='relu', strides=1)(dropout)
         max_pool = GlobalMaxPooling1D()(conv_1d)
         dense = Dense(self._hidden_dims)(max_pool)
-        dropout = Dropout(0.5)(dense)
+        dropout = Dropout(0.2)(dense)
         relu = Activation('relu')(dropout)
-        logits = Dense(2)(relu)
-        predictions = Activation('softmax')(logits)
+        logits = Dense(1)(relu)
+        predictions = Activation('sigmoid')(logits)
 
         model = Model(inputs=inputs, outputs=predictions)
 
@@ -63,7 +65,7 @@ class ImdbClassifier(object):
         model_checkpoint = ModelCheckpoint('/tmp/imdb_cnn', save_best_only=True)
 
         self.model.compile(optimizer=Adam(lr=0.01), 
-                           loss='categorical_crossentropy', 
+                           loss='binary_crossentropy', 
                            metrics=['accuracy'])
 
         history = self.model.fit(X_train, y_train,
@@ -93,8 +95,6 @@ def load_data(max_features=None):
     max_sequence_length = max([len(x) for x in X_train])
     X_train = pad_sequences(X_train, maxlen=max_sequence_length, padding='post')
     X_test = pad_sequences(X_test, maxlen=max_sequence_length, padding='post')
-    y_train = np.eye(2)[y_train]
-    y_test = np.eye(2)[y_test] 
 
     return X_train, y_train, X_test, y_test, max_sequence_length, itos
 
@@ -106,7 +106,6 @@ def train(args):
     X_train, y_train, X_test, y_test, max_sequence_length, itos = load_data(args.max_features)
 
     clf = ImdbClassifier(max_sequence_length, args.max_features, 
-                         lstm_units=args.lstm_units,
                          embedding_size=args.embedding_size,
                          hidden_dims=args.hidden_dims)
 
@@ -126,9 +125,8 @@ if __name__ == '__main__':
                         help='Number of epochs')
     parser.add_argument('--batch-size', dest='batch_size', type=int, default=64,
                         help='Batch size')
-    parser.add_argument('--lstm-units', dest='lstm_units', type=int, default=128)
-    parser.add_argument('--embedding-size', dest='embedding_size', type=int, default=100)
-    parser.add_argument('--hidden-dims', dest='hidden_dims', type=int, default=64)
+    parser.add_argument('--embedding-size', dest='embedding_size', type=int, default=50)
+    parser.add_argument('--hidden-dims', dest='hidden_dims', type=int, default=250)
     parser.add_argument('--max-features', dest='max_features', type=int, default=20000)
 
     args = parser.parse_args()

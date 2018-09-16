@@ -14,8 +14,8 @@ install:
 
 train-imdb:
 	python ./examples/text/imdb/model.py --output-path ./models/imdb \
-		--epochs 20 --batch-size 128 --embedding-size 100 \
-		--lstm-units 128 --hidden-dims 64 --max-features 60000
+		--epochs 20 --batch-size 128 --embedding-size 50 \
+		--hidden-dims 250 --max-features 20000
 
 test: 
 	pytest -s -v $(FLAGS) ./tests/
