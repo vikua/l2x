@@ -1,5 +1,7 @@
 import pickle
 import argparse
+import os
+import numpy as np
 
 from tensorflow.keras import Input
 from tensorflow.keras.layers import (Embedding, Dropout, Conv1D, GlobalMaxPooling1D, 
@@ -30,7 +32,7 @@ class ImdbCNNClassifier(object):
         embed = Embedding(self._vocab_size, self._embedding_size)(inputs)
         dropout = Dropout(0.2)(embed)
         conv_1d = Conv1D(self._filters, self._kernel_size, 
-                         adding='valid', activation='relu', strides=1)(dropout)
+                         padding='valid', activation='relu', strides=1)(dropout)
         max_pool = GlobalMaxPooling1D()(conv_1d)
         dense = Dense(self._hidden_dims)(max_pool)
         dropout = Dropout(0.2)(dense)
@@ -101,11 +103,11 @@ def load_data(max_features=None):
 
 def train(args): 
     if not os.path.exists(args.output_path): 
-        os.mkdir(args.output_path)
+        os.makedirs(args.output_path)
 
     X_train, y_train, X_test, y_test, max_sequence_length, itos = load_data(args.max_features)
 
-    clf = ImdbCNNClassifier(max_sequence_length, self.max_features, 
+    clf = ImdbCNNClassifier(max_sequence_length, args.max_features, 
                             embedding_size=args.embedding_size,
                             hidden_dims=args.hidden_dims)
 
