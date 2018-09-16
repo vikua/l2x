@@ -20,7 +20,7 @@ class ImdbClassifier(object):
         self._vocab_size = vocab_size
 
         self._embedding_size = kwargs.pop('embedding_size', 50)
-        self._filters = kwargs.pop('filters', 250)
+        self._filters = kwargs.pop('filters', 64)
         self._kernel_size = kwargs.pop('kernel_size', 3)
         self._hidden_dims = kwargs.pop('hidden_dims', 250)
 
@@ -30,15 +30,11 @@ class ImdbClassifier(object):
         inputs = Input(shape=(self._max_sequence_length,), dtype='int32', name='inputs')
 
         embed = Embedding(self._vocab_size, self._embedding_size)(inputs)
-        dropout = Dropout(0.2)(embed)
         conv_1d = Conv1D(self._filters, self._kernel_size, 
-                         padding='valid', activation='relu', strides=1)(dropout)
+                         padding='same', activation='relu', strides=1)(embed)
         max_pool = GlobalMaxPooling1D()(conv_1d)
-        dense = Dense(self._hidden_dims)(max_pool)
-        dropout = Dropout(0.2)(dense)
-        relu = Activation('relu')(dropout)
-        logits = Dense(1)(relu)
-        predictions = Activation('sigmoid')(logits)
+        dense = Dense(self._hidden_dims, activation='relu')(max_pool)
+        predictions = Dense(1, activation='sigmoid')(dense)
 
         model = Model(inputs=inputs, outputs=predictions)
 
@@ -81,7 +77,7 @@ class ImdbClassifier(object):
         return self.model.predict(X, batch_size=batch_size)
 
 
-def load_data(max_features=None): 
+def load_data(max_sequence_length, max_features): 
     (X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_features, index_from=3)
 
     stoi = imdb.get_word_index()
@@ -92,20 +88,19 @@ def load_data(max_features=None):
 
     itos = {value:key for key,value in stoi.items()}
 
-    max_sequence_length = max([len(x) for x in X_train])
     X_train = pad_sequences(X_train, maxlen=max_sequence_length, padding='post')
     X_test = pad_sequences(X_test, maxlen=max_sequence_length, padding='post')
 
-    return X_train, y_train, X_test, y_test, max_sequence_length, itos
+    return X_train, y_train, X_test, y_test, itos
 
 
 def train(args): 
     if not os.path.exists(args.output_path): 
         os.makedirs(args.output_path)
 
-    X_train, y_train, X_test, y_test, max_sequence_length, itos = load_data(args.max_features)
+    X_train, y_train, X_test, y_test, itos = load_data(args.max_seq_len, args.max_features)
 
-    clf = ImdbClassifier(max_sequence_length, args.max_features, 
+    clf = ImdbClassifier(args.max_seq_len, args.max_features, 
                          embedding_size=args.embedding_size,
                          hidden_dims=args.hidden_dims)
 
@@ -127,6 +122,7 @@ if __name__ == '__main__':
                         help='Batch size')
     parser.add_argument('--embedding-size', dest='embedding_size', type=int, default=50)
     parser.add_argument('--hidden-dims', dest='hidden_dims', type=int, default=250)
+    parser.add_argument('--max-seq-len', dest='max_seq_len', type=int, default=500)
     parser.add_argument('--max-features', dest='max_features', type=int, default=20000)
 
     args = parser.parse_args()
