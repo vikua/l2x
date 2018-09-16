@@ -99,6 +99,9 @@ def load_data(max_features=None):
 
 
 def train(args): 
+    if not os.path.exists(args.output_path): 
+        os.mkdir(args.output_path)
+
     X_train, y_train, X_test, y_test, max_sequence_length, itos = load_data(args.max_features)
 
     clf = ImdbCNNClassifier(max_sequence_length, self.max_features, 
