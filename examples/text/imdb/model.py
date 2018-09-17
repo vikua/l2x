@@ -49,16 +49,20 @@ class ImdbClassifier(object):
     def save(self, path): 
         self.model.save(path)
 
+    def load_weights(self, weights_path): 
+        self.model.load_weights(weights_path, by_name=True)
+
     def fit(self, X_train, y_train, X_test, y_test, **kwargs): 
         epochs = kwargs.pop('epochs', 1)
         batch_size = kwargs.pop('batch_size', 64)
+        model_path = kwargs.pop('model_path', '/tmp/imdb_cnn')
 
         early_stopping = EarlyStopping(monitor='val_loss', patience=4)
         reduce_learning_rate = ReduceLROnPlateau(monitor='val_loss', 
                                                                     patience=3, 
                                                                     min_lr=0.00001, 
                                                                     verbose=1)
-        model_checkpoint = ModelCheckpoint('/tmp/imdb_cnn', save_best_only=True)
+        model_checkpoint = ModelCheckpoint(model_path, save_best_only=True)
 
         self.model.compile(optimizer=Adam(lr=0.01), 
                            loss='binary_crossentropy', 
@@ -108,14 +112,29 @@ def train(args):
 
     clf.fit(X_train, y_train, X_test, y_test, 
             batch_size=args.batch_size, 
-            epochs=args.epochs)
+            epochs=args.epochs,
+            model_path=os.path.join(args.output_path, 'imdb_cnn.h5'))
 
-    clf.save(os.path.join(args.output_path, 'imdb_cnn.h5'))
+
+def generate_predictions(args): 
+    X_train, y_train, X_test, y_test, itos = load_data(args.max_seq_len, args.max_features)
+
+    clf = ImdbClassifier(args.max_seq_len, args.max_features, 
+                         embedding_size=args.embedding_size,
+                         hidden_dims=args.hidden_dims)
+    clf.load_weights(os.path.join(args.output_path, 'imdb_cnn.h5'))
+
+    pred_train = clf.predict(X_train)
+    pred_test = clf.predict(X_test)
+
+    np.save(os.path.join(args.output_path, 'pred_train.npy'), pred_train)
+    np.save(os.path.join(args.output_path, 'pred_test.npy'), pred_test)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='IMDB classifer')
+    parser = argparse.ArgumentParser(description='IMDB classifer') 
 
+    parser.add_argument('mode', type=str, help='train or prediction')
     parser.add_argument('--output-path', dest='output_path', type=str,
                         help='Path to save the model')
     parser.add_argument('--epochs', dest='epochs', type=int, default=5,
@@ -128,6 +147,11 @@ if __name__ == '__main__':
     parser.add_argument('--max-features', dest='max_features', type=int, default=20000)
 
     args = parser.parse_args()
-    train(args)
+    if args.mode == 'train': 
+        train(args)
+    elif args.mode == 'prediction':
+        generate_predictions(args)
+    else: 
+        raise ValueError('Unknown mode {}'.format(args.mode))
 
 

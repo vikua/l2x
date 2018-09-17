@@ -13,9 +13,15 @@ install:
 
 
 train-imdb:
-	python ./examples/text/imdb/model.py --output-path ./models/imdb \
+	python ./examples/text/imdb/model.py train --output-path ./models/imdb \
 		--epochs 20 --batch-size 128 --embedding-size 100 \
 		--hidden-dims 250 --max-features 20000 --max-seq-len 500
+
+predict-imdb: 
+	python ./examples/text/imdb/model.py prediction --output-path ./models/imdb \
+	    --embedding-size 100 --hidden-dims 250 \
+		--max-features 20000 --max-seq-len 500
+
 
 test: 
 	pytest -s -v $(FLAGS) ./tests/
