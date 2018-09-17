@@ -56,13 +56,15 @@ class ImdbClassifier(object):
         early_stopping = EarlyStopping(monitor='val_loss', patience=4)
         reduce_learning_rate = ReduceLROnPlateau(monitor='val_loss', 
                                                                     patience=3, 
-                                                                    min_lr=0.0001, 
+                                                                    min_lr=0.00001, 
                                                                     verbose=1)
         model_checkpoint = ModelCheckpoint('/tmp/imdb_cnn', save_best_only=True)
 
         self.model.compile(optimizer=Adam(lr=0.01), 
                            loss='binary_crossentropy', 
                            metrics=['accuracy'])
+
+        print(self.model.summary())
 
         history = self.model.fit(X_train, y_train,
                                  validation_data=(X_test, y_test), 
